@@ -1,0 +1,6 @@
+httpx
+tenacity
+pydantic
+pyyaml
+gspread
+google-auth

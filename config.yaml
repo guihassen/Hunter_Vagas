@@ -1,0 +1,46 @@
+termos_busca:
+  - "estágio data science"
+  - "estágio machine learning"
+  - "estágio análise de dados"
+  - "estagiário dados"
+
+score_minimo: 30
+
+scoring:
+  keywords_tecnicas:
+    peso_total: 40
+    termos:
+      machine_learning: ["machine learning", "ml", "deep learning", "pln", "IA"]
+      data_science: ["data science", "ciência de dados"]
+      analise_dados:
+        ["análise de dados", "data analyst", "analytics", "data driven"]
+      python: ["python", "pandas", "scikit-learn"]
+      sql: ["sql", "bigquery"]
+      bi: ["power bi", "tableau", "looker"]
+  setores_bonus:
+    peso_total: 20
+    termos:
+      consultoria: ["consultoria", "consulting", "consultor"]
+      agro: ["agro", "agronegócio", "agtech", "agricultura", "agrotech"]
+  tipo_vaga:
+    peso_total: 20
+    obrigatorio: ["estágio", "estagiário", "estagiária", "intern", "internship"]
+  salario:
+    peso_total: 10
+    bom_se_contem: ["vale refeição", "vr", "va", "auxílio", "plano de saúde"]
+  negativos:
+    peso_total: 10
+    termos: ["sênior", "senior", "pleno", "5 anos", "10 anos", "lead"]
+
+fontes:
+  gupy:
+    ativo: false
+    max_paginas: 10
+  remotive:
+    ativo: true
+    categorias: ["data", "software-dev"]
+  remoteok:
+    ativo: true
+  adzuna:
+    ativo: true
+    max_paginas: 5
