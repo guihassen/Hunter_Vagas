@@ -35,6 +35,14 @@ def main () :
 
     
     vagas_dedup = deduplicar(vagas_raw)
+    print(f"Total coletado: {len(vagas_raw)}")
+    print(f"Após dedup: {len(vagas_dedup)}")
+
+    vagas_filtradas = aplicar_score_e_filtrar(vagas_dedup, config)
+    print(f"Após filtro de score: {len(vagas_filtradas)}")
+
+
+
     vagas_filtradas = aplicar_score_e_filtrar(vagas_dedup, config)
 
     with open("data/vagas.csv", "w", newline="", encoding="utf-8") as f:

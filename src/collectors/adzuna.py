@@ -33,17 +33,21 @@ class AdzunaCollector(BaseCollector) :
                     resp = client.get(url, params=params, timeout=30.0)
                     resp.raise_for_status()
                     vagas = resp.json().get("results", [])
-
+                    print(f"[adzuna] termo='{termo}' pagina={pagina} vagas={len(vagas)}")
                     if not vagas :
                         break
 
                     for vaga_raw in vagas:
-                        yield self._normalizar(vaga_raw)
+                        try:
+                            yield self._normalizar(vaga_raw)
+                        except Exception as e:
+                            print(f"[adzuna erro] {e}")
 
 
     def _normalizar(self, raw: dict) -> Vaga:
         titulo = raw.get("title", "")
         empresa = raw.get("company", {}).get("display_name", "")
+        print(f"[adzuna] titulo={titulo!r} empresa={empresa!r}")
         url = raw.get("redirect_url", "")
         localizacao = raw.get("location", {}).get("display_name") or None
 
