@@ -67,10 +67,25 @@ def calcular_score(vaga: Vaga, config: dict) -> tuple[int, list[str]]:
     ))))
     return total, tags
 
+def _localizacao_ok(vaga: Vaga) -> bool:
+    # remoto passa sempre
+        if vaga.remoto == "remoto":
+            return True
+        # sem localização definida — deixa passar (melhor não perder)
+        if not vaga.localizacao:
+            return True
+        # presencial/híbrido só passa se for SP
+        loc = vaga.localizacao.lower()
+        return "são paulo" in loc or ", sp" in loc
+
+
+
+
 
 def aplicar_score_e_filtrar(vagas: list[Vaga], config: dict) -> list[Vaga]:
      
     resultado = []
+    filtro_loc = ["SP", "São Paulo", "são paulo"]
 
     for vaga in vagas :
         score, tags = calcular_score(vaga, config)
@@ -78,8 +93,10 @@ def aplicar_score_e_filtrar(vagas: list[Vaga], config: dict) -> list[Vaga]:
         vaga.score_fit = score
         vaga.tags_match = tags
 
-        if score >= config["score_minimo"] :
+        if score >= config["score_minimo"] and _localizacao_ok(vaga): 
             resultado.append(vaga)
+        
+        
 
 
     resultado.sort(key=lambda v: v.score_fit, reverse=True)        
