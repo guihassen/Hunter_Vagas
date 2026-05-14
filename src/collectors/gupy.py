@@ -1,33 +1,56 @@
-from src.collectors.base import BaseCollector
-from src.schema import Vaga
+import re
+import time
 import httpx
 from datetime import date, datetime
+from src.collectors.base import BaseCollector
+from src.schema import Vaga
 
-ENDPOINT = "https://portal.api.gupy.io/api/job/list"
+ENDPOINT = "https://portal.api.gupy.io/api/job"
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(text: str) -> str:
+    return _TAG_RE.sub(" ", text or "").strip()
+
 
 class GupyCollector(BaseCollector):
     nome = "gupy"
 
-
     def __init__(self, config: dict):
         super().__init__(config)
-        self.max_paginas=config["fontes"]["gupy"]["max_paginas"]
+        gupy_cfg = config["fontes"]["gupy"]
+        self.max_paginas = gupy_cfg["max_paginas"]
+        # Termos específicos pro Gupy: a API busca só no título da vaga,
+        # então frases longas ("estágio data science") quase nunca batem.
+        # Termos curtos como "dados" ou "analytics" capturam muito mais.
+        self.termos_override = gupy_cfg.get("termos_busca")
 
     def coletar(self, termos: list[str]):
-        with httpx.Client() as client :
-            for termo in termos :
-                for pagina in range(self.max_paginas):
-                    offset = pagina * 20
-                    params = {"name": termo, "offset": offset, "limit": 20}
+        termos_efetivos = self.termos_override if self.termos_override else termos
+        with httpx.Client() as client:
+            for termo in termos_efetivos:
+                offset = 0
+                limit = 20
+                for _ in range(self.max_paginas):
+                    params = {"name": termo, "limit": limit, "offset": offset}
                     resp = client.get(ENDPOINT, params=params, timeout=30.0)
                     resp.raise_for_status()
-                    vagas = resp.json().get("data", [])
-
-                    if not vagas :
+                    payload = resp.json()
+                    vagas = payload.get("data", [])
+                    total = payload.get("pagination", {}).get("total", 0)
+                    print(f"[gupy] termo='{termo}' offset={offset} vagas={len(vagas)} total={total}")
+                    if not vagas:
                         break
-
                     for vaga_raw in vagas:
-                        yield self._normalizar(vaga_raw)
+                        try:
+                            yield self._normalizar(vaga_raw)
+                        except Exception as e:
+                            print(f"[gupy erro] {e}")
+                    offset += limit
+                    if offset >= total:
+                        break
+                    time.sleep(0.5)
 
     def _normalizar(self, raw: dict) -> Vaga:
         titulo = raw.get("name", "")
@@ -36,7 +59,12 @@ class GupyCollector(BaseCollector):
         cidade = raw.get("city") or ""
         estado = raw.get("state") or ""
         localizacao = f"{cidade}, {estado}".strip(", ") or None
-        is_remoto = raw.get("isRemoteWork", False)
+
+        remoto = None
+        if raw.get("isRemoteWork"):
+            remoto = "remoto"
+        elif raw.get("workplaceType") == "hybrid":
+            remoto = "hibrido"
 
         data_pub = None
         if raw.get("publishedDate"):
@@ -53,9 +81,9 @@ class GupyCollector(BaseCollector):
             titulo=titulo,
             empresa=empresa,
             localizacao=localizacao,
-            remoto="remoto" if is_remoto else "presencial",
+            remoto=remoto,
             salario=None,
-            descricao=raw.get("description") or "",
+            descricao=_strip_html(raw.get("description") or ""),
             url=url,
             data_publicacao=data_pub,
             data_coleta=date.today(),

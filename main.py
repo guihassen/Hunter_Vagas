@@ -4,6 +4,7 @@ from src.collectors.gupy import GupyCollector
 from src.collectors.remotive import RemotiveCollector
 from src.collectors.remoteok import RemoteokCollector
 from src.collectors.adzuna import AdzunaCollector
+from src.collectors.linkedin import LinkedInCollector
 from src.filters import aplicar_score_e_filtrar
 from src.dedup import deduplicar
 from src.schema import Vaga
@@ -33,6 +34,10 @@ def main () :
         adzuna = AdzunaCollector(config)
         vagas_raw.extend(adzuna.coletar(termos))
 
+    if config["fontes"]["linkedin"]["ativo"]:
+        linkedin = LinkedInCollector(config)
+        vagas_raw.extend(linkedin.coletar(termos))
+
     
     vagas_dedup = deduplicar(vagas_raw)
     print(f"Total coletado: {len(vagas_raw)}")
@@ -40,10 +45,6 @@ def main () :
 
     vagas_filtradas = aplicar_score_e_filtrar(vagas_dedup, config)
     print(f"Após filtro de score: {len(vagas_filtradas)}")
-
-
-
-    vagas_filtradas = aplicar_score_e_filtrar(vagas_dedup, config)
 
     with open("data/vagas.csv", "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)

@@ -3,6 +3,8 @@ termos_busca:
   - "estágio machine learning"
   - "estágio análise de dados"
   - "estagiário dados"
+  - "estágio agronegócio dados"
+  - "estágio agtech"
 
 score_minimo: 30
 
@@ -21,7 +23,10 @@ scoring:
     peso_total: 20
     termos:
       consultoria: ["consultoria", "consulting", "consultor"]
-      agro: ["agro", "agronegócio", "agtech", "agricultura", "agrotech"]
+      agro: ["agro", "agronegócio", "agtech", "agricultura", "agrotech",
+              "agropecuária", "agribusiness", "cooperativa", "safra",
+              "rastreabilidade", "soja", "grãos", "cana", "smart farming",
+              "precision agriculture", "agricultura digital"]
   tipo_vaga:
     peso_total: 20
     obrigatorio: ["estágio", "estagiário", "estagiária", "intern", "internship"]
@@ -34,13 +39,25 @@ scoring:
 
 fontes:
   gupy:
-    ativo: false
-    max_paginas: 10
-  remotive:
     ativo: true
+    max_paginas: 5
+    # A API do Gupy busca só no título da vaga — termos curtos batem muito mais
+    # do que frases longas como "estágio data science"
+    termos_busca:
+      - "dados"
+      - "analytics"
+      - "machine learning"
+      - "data science"
+      - "agronegócio"
+      - "agtech"
+  remotive:
+    ativo: false   # plataforma internacional em inglês, sem estágios BR
     categorias: ["data", "software-dev"]
   remoteok:
+    ativo: false   # idem — nunca contribuiu com vagas relevantes
+  linkedin:
     ativo: true
+    max_paginas: 3   # 3 páginas × 25 vagas = até 75 por termo de busca
   adzuna:
     ativo: true
     max_paginas: 5

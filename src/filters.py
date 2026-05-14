@@ -1,4 +1,11 @@
+import re
 from src.schema import Vaga
+
+
+def _contem_termo(termo: str, texto: str) -> bool:
+    # Usa word boundary para evitar falsos positivos em português:
+    # "intern" não deve bater em "interno", "interna", "internamente", etc.
+    return bool(re.search(r"\b" + re.escape(termo) + r"\b", texto))
 
 
 
@@ -36,10 +43,9 @@ def calcular_score(vaga: Vaga, config: dict) -> tuple[int, list[str]]:
     peso_tipo = config["scoring"]["tipo_vaga"]["peso_total"]
     termos_tipo = config["scoring"]["tipo_vaga"]["obrigatorio"]
 
-    if any(termo.lower() in texto for termo in termos_tipo):
-            score_tipo = peso_tipo
-            tags.append("estagio")
-    
+    if any(_contem_termo(termo.lower(), texto) for termo in termos_tipo):
+        score_tipo = peso_tipo
+        tags.append("estagio")
     else:
         score_tipo = 0
 
@@ -68,15 +74,18 @@ def calcular_score(vaga: Vaga, config: dict) -> tuple[int, list[str]]:
     return total, tags
 
 def _localizacao_ok(vaga: Vaga) -> bool:
-    # remoto passa sempre
-        if vaga.remoto == "remoto":
-            return True
-        # sem localização definida — deixa passar (melhor não perder)
-        if not vaga.localizacao:
-            return True
-        # presencial/híbrido só passa se for SP
-        loc = vaga.localizacao.lower()
-        return "são paulo" in loc or ", sp" in loc
+    if vaga.remoto == "remoto":
+        return True
+    if not vaga.localizacao:
+        return True
+    loc = vaga.localizacao.lower()
+    return "são paulo" in loc or ", sp" in loc
+
+
+def _é_estagio(vaga: Vaga, config: dict) -> bool:
+    termos = config["scoring"]["tipo_vaga"]["obrigatorio"]
+    texto = (vaga.titulo + " " + vaga.descricao).lower()
+    return any(_contem_termo(termo.lower(), texto) for termo in termos)
 
 
 
@@ -93,7 +102,7 @@ def aplicar_score_e_filtrar(vagas: list[Vaga], config: dict) -> list[Vaga]:
         vaga.score_fit = score
         vaga.tags_match = tags
 
-        if score >= config["score_minimo"] and _localizacao_ok(vaga): 
+        if score >= config["score_minimo"] and _localizacao_ok(vaga) and _é_estagio(vaga, config):
             resultado.append(vaga)
         
         

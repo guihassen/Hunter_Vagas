@@ -2,5 +2,7 @@ httpx
 tenacity
 pydantic
 pyyaml
+beautifulsoup4
 gspread
 google-auth
+python-dotenv
