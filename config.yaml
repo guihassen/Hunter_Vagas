@@ -5,6 +5,10 @@ termos_busca:
   - "estagiário dados"
   - "estágio agronegócio dados"
   - "estágio agtech"
+  - "data analyst intern"
+  - "machine learning intern"
+  - "data science intern"
+  - "analytics intern"
 
 score_minimo: 30
 
@@ -18,7 +22,7 @@ scoring:
         ["análise de dados", "data analyst", "analytics", "data driven"]
       python: ["python", "pandas", "scikit-learn"]
       sql: ["sql", "bigquery"]
-      bi: ["power bi", "tableau", "looker"]
+      bi: ["power bi", "tableau", "looker", "business intelligence", "bi"]
   setores_bonus:
     peso_total: 20
     termos:
@@ -36,6 +40,46 @@ scoring:
   negativos:
     peso_total: 10
     termos: ["sênior", "senior", "pleno", "5 anos", "10 anos", "lead"]
+
+  negativos_titulo:
+    # Rejeita vagas cujo TÍTULO contém estas áreas sem nenhum keyword de dados.
+    # Exemplos rejeitados: "Estágio Jurídico", "Estagiário Comercial"
+    # Exemplos mantidos: "Estágio Performance Comercial - Análise de Dados"
+    areas:
+      - "jurídico"
+      - "direito"
+      - "engenharia civil"
+      - "engenharia mecânica"
+      - "engenharia elétrica"
+      - "engenharia de produção"
+      - "engenharia química"
+      - "marketing"
+      - "recursos humanos"
+      - "meio ambiente"
+      - "contábil"
+      - "tributário"
+      - "logística"
+      - "suprimentos"
+      - "compras"
+      - "educação física"
+      - "estagiário comercial"
+      - "estágio comercial"
+      - "estágio administrativo"
+      - "estagiário administrativo"
+      - "estágio em vendas"
+      - "estagiário de vendas"
+    # Se o título contiver qualquer uma dessas, não rejeitar
+    exceto_se_titulo_contem:
+      - "dados"
+      - "data"
+      - "analytics"
+      - "análise"
+      - "machine"
+      - "inteligência"
+      - "ciência"
+      - "python"
+      - "sql"
+      - "bi"
 
 fontes:
   gupy:
@@ -57,7 +101,26 @@ fontes:
     ativo: false   # idem — nunca contribuiu com vagas relevantes
   linkedin:
     ativo: true
-    max_paginas: 3   # 3 páginas × 25 vagas = até 75 por termo de busca
+    max_paginas: 3
+    # Override com termos em inglês e português — o f_JT=I já filtra por nível,
+    # então não precisa de "intern" explícito nos termos
+    termos_busca:
+      - "estágio data science"
+      - "estágio análise de dados"
+      - "estágio machine learning"
+      - "estagiário dados"
+      - "estágio agronegócio dados"
+      - "data analyst"
+      - "data scientist"
+      - "machine learning"
+      - "analytics intern"
+      - "data science intern"
+      - "agro data analyst"
+      - "agribusiness data"
   adzuna:
     ativo: true
     max_paginas: 5
+  google_jobs:
+    ativo: true
+    max_results_por_query: 15
+    # queries:  # descomente para sobrescrever as queries padrão definidas no coletor

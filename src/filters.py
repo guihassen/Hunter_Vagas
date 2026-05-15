@@ -18,7 +18,7 @@ def calcular_score(vaga: Vaga, config: dict) -> tuple[int, list[str]]:
 
     matches = 0
     for nome_cat, termos in categorias.items():
-        if any(termo.lower() in texto for termo in termos):
+        if any(_contem_termo(termo.lower(), texto) for termo in termos):
             matches += 1
             tags.append(nome_cat)
 
@@ -31,10 +31,10 @@ def calcular_score(vaga: Vaga, config: dict) -> tuple[int, list[str]]:
     matches = 0
 
     for nome_set, termos in setores.items():
-        if any(termo.lower() in texto for termo in termos):
+        if any(_contem_termo(termo.lower(), texto) for termo in termos):
             matches += 1
             tags.append(nome_set)
-    
+
     score_setor = (matches / len(setores)) * peso_sb
 
 
@@ -83,9 +83,35 @@ def _localizacao_ok(vaga: Vaga) -> bool:
 
 
 def _é_estagio(vaga: Vaga, config: dict) -> bool:
+    # LinkedIn já filtra por nível via f_JT=I na busca — confia na fonte
+    if vaga.fonte in ("linkedin", "google_jobs"):
+        return True
     termos = config["scoring"]["tipo_vaga"]["obrigatorio"]
     texto = (vaga.titulo + " " + vaga.descricao).lower()
     return any(_contem_termo(termo.lower(), texto) for termo in termos)
+
+
+def _titulo_relevante(vaga: Vaga, config: dict) -> bool:
+    cfg = config["scoring"].get("negativos_titulo")
+    if not cfg:
+        return True
+    titulo = vaga.titulo.lower()
+    tem_area_negativa = any(_contem_termo(a.lower(), titulo) for a in cfg["areas"])
+    if not tem_area_negativa:
+        return True
+    # Tem área negativa — mantém só se houver keyword de dados no título
+    return any(_contem_termo(s.lower(), titulo) for s in cfg["exceto_se_titulo_contem"])
+
+
+def _tem_relevancia_tecnica(vaga: Vaga, config: dict) -> bool:
+    # Exige ao menos 1 categoria técnica real — bloqueia vagas de Direito,
+    # Engenharia Civil, RH, etc. que chegam ao score mínimo por falsos positivos.
+    categorias = config["scoring"]["keywords_tecnicas"]["termos"]
+    texto = (vaga.titulo + " " + vaga.descricao).lower()
+    return any(
+        any(_contem_termo(termo.lower(), texto) for termo in termos)
+        for termos in categorias.values()
+    )
 
 
 
@@ -102,7 +128,11 @@ def aplicar_score_e_filtrar(vagas: list[Vaga], config: dict) -> list[Vaga]:
         vaga.score_fit = score
         vaga.tags_match = tags
 
-        if score >= config["score_minimo"] and _localizacao_ok(vaga) and _é_estagio(vaga, config):
+        if (score >= config["score_minimo"]
+                and _localizacao_ok(vaga)
+                and _é_estagio(vaga, config)
+                and _tem_relevancia_tecnica(vaga, config)
+                and _titulo_relevante(vaga, config)):
             resultado.append(vaga)
         
         

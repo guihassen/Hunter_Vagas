@@ -6,3 +6,4 @@ beautifulsoup4
 gspread
 google-auth
 python-dotenv
+duckduckgo-search

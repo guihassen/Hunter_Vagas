@@ -5,6 +5,7 @@ from src.collectors.remotive import RemotiveCollector
 from src.collectors.remoteok import RemoteokCollector
 from src.collectors.adzuna import AdzunaCollector
 from src.collectors.linkedin import LinkedInCollector
+from src.collectors.google_jobs import GoogleJobsCollector
 from src.filters import aplicar_score_e_filtrar
 from src.dedup import deduplicar
 from src.schema import Vaga
@@ -38,7 +39,10 @@ def main () :
         linkedin = LinkedInCollector(config)
         vagas_raw.extend(linkedin.coletar(termos))
 
-    
+    if config["fontes"]["google_jobs"]["ativo"]:
+        google_jobs = GoogleJobsCollector(config)
+        vagas_raw.extend(google_jobs.coletar(termos))
+
     vagas_dedup = deduplicar(vagas_raw)
     print(f"Total coletado: {len(vagas_raw)}")
     print(f"Após dedup: {len(vagas_dedup)}")

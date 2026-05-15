@@ -31,8 +31,10 @@ class LinkedInCollector(BaseCollector):
         super().__init__(config)
         li_cfg = config["fontes"]["linkedin"]
         self.max_paginas = li_cfg["max_paginas"]
+        self.termos_override = li_cfg.get("termos_busca")
 
     def coletar(self, termos: list[str]):
+        termos = self.termos_override if self.termos_override else termos
         with httpx.Client(follow_redirects=True) as client:
             for termo in termos:
                 for pagina in range(self.max_paginas):
