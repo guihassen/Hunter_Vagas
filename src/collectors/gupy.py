@@ -5,7 +5,7 @@ from datetime import date, datetime
 from src.collectors.base import BaseCollector
 from src.schema import Vaga
 
-ENDPOINT = "https://portal.api.gupy.io/api/job"
+ENDPOINT = "https://employability-portal.gupy.io/api/v1/jobs"
 
 _TAG_RE = re.compile(r"<[^>]+>")
 
@@ -33,7 +33,7 @@ class GupyCollector(BaseCollector):
                 offset = 0
                 limit = 20
                 for _ in range(self.max_paginas):
-                    params = {"name": termo, "limit": limit, "offset": offset}
+                    params = {"jobName": termo, "limit": limit, "offset": offset}
                     resp = client.get(ENDPOINT, params=params, timeout=30.0)
                     resp.raise_for_status()
                     payload = resp.json()
