@@ -1,19 +1,52 @@
 import re
 import time
+import warnings
 import httpx
 from datetime import date
+from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="duckduckgo_search")
 from duckduckgo_search import DDGS
 from src.collectors.base import BaseCollector
-from src.collectors.linkedin import _strip_html
 from src.schema import Vaga
 
+# Queries simples sem operadores avançados — DDG não suporta site:, OR, aspas combinadas
 QUERIES = [
-    'site:boards.greenhouse.io (estágio OR intern) (dados OR "data science" OR analytics OR "machine learning") São Paulo',
-    'site:jobs.lever.co (estágio OR intern) (dados OR "data science" OR analytics) São Paulo',
-    '"estágio" ("data science" OR "machine learning" OR analytics OR dados) "São Paulo" -site:linkedin.com -site:gupy.io',
-    '"intern" ("data analyst" OR "data scientist" OR analytics) "São Paulo"',
-    '"estágio" (agro OR agtech OR agronegócio) dados "São Paulo"',
+    "estagio data science Sao Paulo vaga",
+    "estagio machine learning Sao Paulo",
+    "estagio analytics dados Sao Paulo",
+    "internship data analyst Sao Paulo",
+    "estagio BI Sao Paulo",
+    "estagio agro dados Sao Paulo",
+    "intern data science Brazil Sao Paulo",
 ]
+
+# Domínios já cobertos por outros coletores, bloqueados, ou que retornam listas/notícias
+_SKIP_DOMAINS = {
+    # já cobertos
+    "linkedin.com", "br.linkedin.com",
+    "gupy.io", "portal.gupy.io",
+    "adzuna.com", "adzuna.com.br",
+    "indeed.com", "br.indeed.com",
+    # job boards que bloqueiam scraping ou retornam listas
+    "glassdoor.com", "glassdoor.com.br", "glassdoor.co.uk", "glassdoor.de",
+    "jooble.org", "br.jooble.org",
+    "whatjobs.com", "br.whatjobs.com",
+    "efinancialcareers.com",
+    "catho.com.br",
+    "infojobs.com.br",
+    "vagas.com.br",
+    # portais de estágio genéricos (não individuais)
+    "ciee.org.br", "portal.ciee.org.br", "cieers.org.br",
+    "nube.com.br",
+    "futuraestagios.com.br", "superestagios.com.br", "portaldoestagio.com.br",
+    "ciadeestagios.com.br",
+    # portais institucionais / notícias
+    "agencia.petrobras.com.br",
+    "gazetadopovo.com.br", "concursonews.com.br", "concursosnobrasil.com.br",
+    "seudinheiro.com", "dcmais.com.br",
+    "wizard.com.br", "dmv.org",
+}
 
 _GENERIC_HEADERS = {
     "User-Agent": (
@@ -21,6 +54,30 @@ _GENERIC_HEADERS = {
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
 }
+
+
+def _domain_of(url: str) -> str:
+    try:
+        return urlparse(url).netloc.lstrip("www.")
+    except Exception:
+        return ""
+
+
+def _is_relevant_url(url: str) -> bool:
+    domain = _domain_of(url)
+    return not any(domain == s or domain.endswith("." + s) for s in _SKIP_DOMAINS)
+
+
+def _empresa_from_domain(url: str) -> str:
+    """Extrai nome da empresa limpando prefixos comuns do domínio."""
+    netloc = urlparse(url).netloc.lstrip("www.")
+    # Remove prefixos de páginas de carreira
+    for prefix in ("careers.", "carreiras.", "jobs.", "vagas.", "trabalhe.", "recrutamento."):
+        if netloc.startswith(prefix):
+            netloc = netloc[len(prefix):]
+    # Remove sufixo de domínio
+    netloc = re.sub(r"\.(com\.br|com|org\.br|org|io|co\.uk)$", "", netloc)
+    return netloc.replace("-", " ").replace(".", " ").title()
 
 
 class GoogleJobsCollector(BaseCollector):
@@ -44,8 +101,10 @@ class GoogleJobsCollector(BaseCollector):
                     print(f"[google_jobs] DDG erro: {e}")
                     continue
 
-                print(f"[google_jobs] query='{query[:65]}' resultados={len(results)}")
-                for r in results:
+                relevantes = [r for r in results if _is_relevant_url(r.get("href", ""))]
+                print(f"[google_jobs] '{query[:55]}' → {len(results)} resultados, {len(relevantes)} novos domínios")
+
+                for r in relevantes:
                     url = r.get("href", "")
                     if not url or url in seen_urls:
                         continue
@@ -55,7 +114,7 @@ class GoogleJobsCollector(BaseCollector):
                         if vaga:
                             yield vaga
                     except Exception as e:
-                        print(f"[google_jobs erro] {url}: {e}")
+                        print(f"[google_jobs erro] {url[:60]}: {e}")
                     time.sleep(0.5)
                 time.sleep(2)
 
@@ -76,7 +135,8 @@ class GoogleJobsCollector(BaseCollector):
         if r.status_code != 200:
             return self._fetch_generico(client, url, snippet)
         data = r.json()
-        descricao = _strip_html(data.get("content") or snippet.get("body", ""))
+        tag_re = re.compile(r"<[^>]+>")
+        descricao = tag_re.sub(" ", data.get("content") or "").strip() or snippet.get("body", "")
         loc = (data.get("location") or {}).get("name", "") or ""
         return Vaga(
             id=Vaga.gerar_id("google_jobs", url, data.get("title", "")),
@@ -122,23 +182,47 @@ class GoogleJobsCollector(BaseCollector):
         )
 
     def _fetch_generico(self, client: httpx.Client, url: str, snippet: dict) -> "Vaga | None":
-        try:
-            r = client.get(url, headers=_GENERIC_HEADERS)
-            texto = _strip_html(r.text)[:3000]
-        except Exception:
-            texto = snippet.get("body", "")
         titulo = snippet.get("title", "")
         if not titulo:
             return None
+        descricao = snippet.get("body", "")
+        empresa = _empresa_from_domain(url)
+        localizacao = ""
+
+        try:
+            r = client.get(url, headers=_GENERIC_HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+            for tag in soup(["script", "style", "nav", "header", "footer"]):
+                tag.decompose()
+
+            h1 = soup.find("h1")
+            if h1:
+                titulo = h1.get_text(strip=True) or titulo
+
+            main = soup.find("main") or soup.find("article") or soup.find("body")
+            if main:
+                texto = main.get_text(separator=" ", strip=True)
+                descricao = re.sub(r"\s+", " ", texto)[:3000]
+
+            # Detectar localização no texto
+            loc_match = re.search(
+                r"(são paulo[^,\n]*|sp[^a-z]|híbrido|remoto|presencial)",
+                descricao.lower()
+            )
+            if loc_match:
+                localizacao = loc_match.group(0).strip().title()
+        except Exception:
+            pass
+
         return Vaga(
             id=Vaga.gerar_id("google_jobs", url, titulo),
             fonte="google_jobs",
             titulo=titulo,
-            empresa="",
-            localizacao="",
+            empresa=empresa,
+            localizacao=localizacao,
             remoto=None,
             salario=None,
-            descricao=texto,
+            descricao=descricao,
             url=url,
             data_publicacao=None,
             data_coleta=date.today(),

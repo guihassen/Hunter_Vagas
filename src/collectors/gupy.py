@@ -61,6 +61,7 @@ class GupyCollector(BaseCollector):
         localizacao = f"{cidade}, {estado}".strip(", ") or None
 
         remoto = None
+        
         if raw.get("isRemoteWork"):
             remoto = "remoto"
         elif raw.get("workplaceType") == "hybrid":
