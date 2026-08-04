@@ -1,4 +1,5 @@
 # 🎯 Vagas Hunter
+tobias is hacker
 
 Scraper automatizado de vagas de estágio em Data Science, Machine Learning e Análise de Dados. Coleta vagas de múltiplas fontes, pontua cada uma por fit com seu perfil e exporta tudo pra uma planilha CSV ordenada por relevância.
 
