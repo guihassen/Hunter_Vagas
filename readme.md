@@ -20,12 +20,15 @@ O projeto varre múltiplas fontes de vagas, normaliza tudo num schema único e a
 
 ## Fontes suportadas
 
-| Fonte    | Tipo                   | Status                                |
-| -------- | ---------------------- | ------------------------------------- |
-| Adzuna   | API pública (gratuita) | ✅ Ativo                              |
-| Remotive | API pública (gratuita) | ✅ Ativo                              |
-| RemoteOK | Feed JSON público      | ✅ Ativo                              |
-| Gupy     | API pública            | ⏸ Desativado (endpoint descontinuado) |
+| Fonte       | Tipo                       | Status                                          |
+| ----------- | -------------------------- | ------------------------------------------------ |
+| Gupy        | API pública                | ✅ Ativo                                          |
+| LinkedIn    | Scraping (HTML público)    | ✅ Ativo                                          |
+| Google Jobs | Busca (DuckDuckGo + fetch) | ✅ Ativo                                          |
+| Remotive    | API pública (gratuita)     | ⏸ Desativado por padrão (poucas vagas BR)         |
+| RemoteOK    | Feed JSON público          | ⏸ Desativado por padrão (poucas vagas BR)         |
+| Adzuna      | API pública                | ❌ Removido (API instável, retornava 400 recorrente) |
+| Glassdoor   | —                          | ❌ Inviável — sem API pública; scraping é bloqueado por captcha/anti-bot após 1-2 requisições |
 
 ---
 
@@ -36,21 +39,24 @@ vagas-hunter/
 ├── src/
 │   ├── collectors/
 │   │   ├── base.py          # Interface abstrata dos coletores
-│   │   ├── adzuna.py        # Coletor Adzuna (API oficial)
+│   │   ├── gupy.py          # Coletor Gupy (API pública)
+│   │   ├── linkedin.py      # Coletor LinkedIn (scraping HTML)
+│   │   ├── google_jobs.py   # Coletor via busca DuckDuckGo + fetch de páginas
 │   │   ├── remotive.py      # Coletor Remotive
-│   │   ├── remoteok.py      # Coletor RemoteOK
-│   │   └── gupy.py          # Coletor Gupy (desativado)
+│   │   └── remoteok.py      # Coletor RemoteOK
 │   ├── schema.py            # Schema unificado (Pydantic)
 │   ├── filters.py           # Sistema de scoring
 │   └── dedup.py             # Deduplicação entre fontes
+├── tests/
+│   ├── collectors/          # Testes unitários de cada coletor (mocks de rede)
+│   └── test_integration.py  # Teste integrado do pipeline completo
 ├── .github/workflows/
 │   └── scrape.yml           # GitHub Actions (a implementar)
 ├── data/
 │   └── vagas.csv            # Output gerado
 ├── config.yaml              # Perfil de busca e pesos do scoring
 ├── main.py                  # Orquestrador
-├── requirements.txt
-└── .env                     # Credenciais (não versionar)
+└── requirements.txt
 ```
 
 ---
@@ -77,18 +83,9 @@ pip install -r requirements.txt
 
 ## Configuração
 
-**1. Credenciais**
+Nenhuma credencial é necessária — todas as fontes ativas hoje (Gupy, LinkedIn, Google Jobs) são públicas e não exigem chave de API.
 
-Crie um arquivo `.env` na raiz:
-
-```
-ADZUNA_APP_ID=seu_app_id
-ADZUNA_APP_KEY=sua_app_key
-```
-
-Obtenha suas credenciais gratuitamente em [developers.adzuna.com](https://developers.adzuna.com).
-
-**2. Perfil de busca**
+**Perfil de busca**
 
 Edite o `config.yaml` para ajustar:
 
@@ -133,10 +130,22 @@ httpx
 tenacity
 pydantic
 pyyaml
+beautifulsoup4
 gspread
 google-auth
-python-dotenv
+duckduckgo-search
 ```
+
+---
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Cada coletor tem testes unitários que mockam a rede (`respx`/HTML fixo), e há um teste de integração (`tests/test_integration.py`) que roda o pipeline completo — coleta de múltiplas fontes (stubadas), dedup, scoring e geração do CSV — sem tocar em nenhuma API real.
 
 ---
 
@@ -144,8 +153,9 @@ python-dotenv
 
 - [ ] Integração com Google Sheets
 - [ ] Automação via GitHub Actions (2x por dia)
-- [ ] Reativar coletor Gupy quando API voltar
 - [ ] Notificação por email/Telegram pra vagas com score alto
+
+**Descartado:** Glassdoor — não tem API pública (a antiga API de parceiros foi descontinuada) e o scraping do site é bloqueado por captcha/anti-bot já na segunda requisição consecutiva.
 
 ---
 

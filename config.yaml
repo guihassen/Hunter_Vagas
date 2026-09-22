@@ -117,9 +117,6 @@ fontes:
       - "data science intern"
       - "agro data analyst"
       - "agribusiness data"
-  adzuna:
-    ativo: true
-    max_paginas: 5
   google_jobs:
     ativo: true
     max_results_por_query: 15

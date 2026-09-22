@@ -23,8 +23,8 @@ class RemotiveCollector(BaseCollector):
                 vagas = resp.json().get("jobs", [])
 
                 for vaga_raw in vagas:
-                    
-                    texto = (vaga_raw.get("title") or "" + vaga_raw.get("description") or "").lower()
+
+                    texto = ((vaga_raw.get("title") or "") + " " + (vaga_raw.get("description") or "")).lower()
                     if any(kw in texto for kw in keywords):
                         yield self._normalizar(vaga_raw)
 
